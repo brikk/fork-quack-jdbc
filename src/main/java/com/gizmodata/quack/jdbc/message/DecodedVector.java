@@ -13,9 +13,11 @@ import com.gizmodata.quack.jdbc.type.LogicalType;
  * VARCHAR / BLOB / nested types, etc.) fall through to
  * {@link ObjectVec}.
  *
- * <p>Null handling: {@code validity} is {@code null} when every row is
- * valid. Otherwise {@code validity[row] == false} means the row is
- * null and the slot in {@code values} carries an undefined zero value.
+ * <p>Null handling: {@code validity} is a bit-packed {@code long[]}
+ * with row {@code N}'s bit at position {@code N % 64} of
+ * {@code validity[N / 64]}. A {@code null} validity means every row is
+ * valid (cheaper for the common non-nullable case). For {@link ObjectVec}
+ * a null value in the array is the null signal.
  */
 public sealed interface DecodedVector {
 
@@ -63,16 +65,16 @@ public sealed interface DecodedVector {
         return v == null ? 0d : ((Number) v).doubleValue();
     }
 
-    record BoolVec(LogicalType type, boolean[] values, boolean[] validity) implements DecodedVector {
+    record BoolVec(LogicalType type, boolean[] values, long[] validity) implements DecodedVector {
         @Override public int size() { return values.length; }
-        @Override public boolean isNull(int row) { return validity != null && !validity[row]; }
+        @Override public boolean isNull(int row) { return Validity.isNull(validity, row); }
         @Override public Object getObject(int row) { return isNull(row) ? null : Boolean.valueOf(values[row]); }
         @Override public boolean getBoolean(int row) { return values[row]; }
     }
 
-    record ByteVec(LogicalType type, byte[] values, boolean[] validity) implements DecodedVector {
+    record ByteVec(LogicalType type, byte[] values, long[] validity) implements DecodedVector {
         @Override public int size() { return values.length; }
-        @Override public boolean isNull(int row) { return validity != null && !validity[row]; }
+        @Override public boolean isNull(int row) { return Validity.isNull(validity, row); }
         @Override public Object getObject(int row) { return isNull(row) ? null : Byte.valueOf(values[row]); }
         @Override public byte getByte(int row) { return values[row]; }
         @Override public short getShort(int row) { return values[row]; }
@@ -81,9 +83,9 @@ public sealed interface DecodedVector {
         @Override public double getDouble(int row) { return values[row]; }
     }
 
-    record ShortVec(LogicalType type, short[] values, boolean[] validity) implements DecodedVector {
+    record ShortVec(LogicalType type, short[] values, long[] validity) implements DecodedVector {
         @Override public int size() { return values.length; }
-        @Override public boolean isNull(int row) { return validity != null && !validity[row]; }
+        @Override public boolean isNull(int row) { return Validity.isNull(validity, row); }
         @Override public Object getObject(int row) { return isNull(row) ? null : Short.valueOf(values[row]); }
         @Override public short getShort(int row) { return values[row]; }
         @Override public int getInt(int row) { return values[row]; }
@@ -91,34 +93,34 @@ public sealed interface DecodedVector {
         @Override public double getDouble(int row) { return values[row]; }
     }
 
-    record IntVec(LogicalType type, int[] values, boolean[] validity) implements DecodedVector {
+    record IntVec(LogicalType type, int[] values, long[] validity) implements DecodedVector {
         @Override public int size() { return values.length; }
-        @Override public boolean isNull(int row) { return validity != null && !validity[row]; }
+        @Override public boolean isNull(int row) { return Validity.isNull(validity, row); }
         @Override public Object getObject(int row) { return isNull(row) ? null : Integer.valueOf(values[row]); }
         @Override public int getInt(int row) { return values[row]; }
         @Override public long getLong(int row) { return values[row]; }
         @Override public double getDouble(int row) { return values[row]; }
     }
 
-    record LongVec(LogicalType type, long[] values, boolean[] validity) implements DecodedVector {
+    record LongVec(LogicalType type, long[] values, long[] validity) implements DecodedVector {
         @Override public int size() { return values.length; }
-        @Override public boolean isNull(int row) { return validity != null && !validity[row]; }
+        @Override public boolean isNull(int row) { return Validity.isNull(validity, row); }
         @Override public Object getObject(int row) { return isNull(row) ? null : Long.valueOf(values[row]); }
         @Override public long getLong(int row) { return values[row]; }
         @Override public double getDouble(int row) { return values[row]; }
     }
 
-    record FloatVec(LogicalType type, float[] values, boolean[] validity) implements DecodedVector {
+    record FloatVec(LogicalType type, float[] values, long[] validity) implements DecodedVector {
         @Override public int size() { return values.length; }
-        @Override public boolean isNull(int row) { return validity != null && !validity[row]; }
+        @Override public boolean isNull(int row) { return Validity.isNull(validity, row); }
         @Override public Object getObject(int row) { return isNull(row) ? null : Float.valueOf(values[row]); }
         @Override public float getFloat(int row) { return values[row]; }
         @Override public double getDouble(int row) { return values[row]; }
     }
 
-    record DoubleVec(LogicalType type, double[] values, boolean[] validity) implements DecodedVector {
+    record DoubleVec(LogicalType type, double[] values, long[] validity) implements DecodedVector {
         @Override public int size() { return values.length; }
-        @Override public boolean isNull(int row) { return validity != null && !validity[row]; }
+        @Override public boolean isNull(int row) { return Validity.isNull(validity, row); }
         @Override public Object getObject(int row) { return isNull(row) ? null : Double.valueOf(values[row]); }
         @Override public double getDouble(int row) { return values[row]; }
         @Override public float getFloat(int row) { return (float) values[row]; }

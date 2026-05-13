@@ -155,6 +155,44 @@ public class StreamingIntegrationTest {
         }
     }
 
+    @Test
+    void sequenceEncodingProducesTypedVector() throws Exception {
+        // range() returns BIGINT and DuckDB encodes it as a SEQUENCE vector.
+        // We must materialize that as a LongVec (primitive long[]), not
+        // ObjectVec — otherwise the memory benefit vanishes for SELECT i FROM range().
+        try (QuackConnection c = connect();
+             QuackSession.Cursor cursor = c.session().cursor("SELECT i FROM range(0, 1000) t(i)")) {
+            DataChunk chunk = cursor.nextChunk();
+            assertNotNull(chunk);
+            assertTrue(chunk.columns().get(0) instanceof DecodedVector.LongVec,
+                    "expected SEQUENCE → LongVec, got "
+                            + chunk.columns().get(0).getClass().getSimpleName());
+            // Spot-check a couple of values
+            DecodedVector.LongVec vec = (DecodedVector.LongVec) chunk.columns().get(0);
+            assertEquals(0L, vec.values()[0]);
+            if (vec.size() > 5) assertEquals(5L, vec.values()[5]);
+        }
+    }
+
+    @Test
+    void constantEncodingProducesTypedVector() throws Exception {
+        // SELECT <literal> FROM range(n) often emits a CONSTANT-encoded vector.
+        // Whatever the server chooses, we should land on an IntVec for a
+        // literal INTEGER repeated across rows.
+        try (QuackConnection c = connect();
+             QuackSession.Cursor cursor = c.session().cursor("SELECT 42::INTEGER AS x FROM range(0, 1000)")) {
+            DataChunk chunk = cursor.nextChunk();
+            assertNotNull(chunk);
+            // Either FLAT or CONSTANT, both must land in IntVec.
+            assertTrue(chunk.columns().get(0) instanceof DecodedVector.IntVec,
+                    "expected typed IntVec, got "
+                            + chunk.columns().get(0).getClass().getSimpleName());
+            DecodedVector.IntVec vec = (DecodedVector.IntVec) chunk.columns().get(0);
+            assertEquals(42, vec.values()[0]);
+            assertEquals(42, vec.values()[vec.size() - 1]);
+        }
+    }
+
     private static void assertColumnVecType(DataChunk chunk, int column,
                                             Class<? extends DecodedVector> expected) {
         DecodedVector actual = chunk.columns().get(column);

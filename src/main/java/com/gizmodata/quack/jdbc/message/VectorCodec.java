@@ -95,29 +95,202 @@ public final class VectorCodec {
     private static DecodedVector broadcastConstant(BinaryReader reader, LogicalType type, int count) {
         DecodedVector single = decodeVectorBody(reader, type, count > 0 ? 1 : 0);
         Object value = single.size() == 0 ? null : single.getObject(0);
-        Object[] values = new Object[count];
-        for (int i = 0; i < count; i++) values[i] = value;
-        return new DecodedVector.ObjectVec(type, values);
+        return broadcastValueTyped(type, value, count);
     }
 
     private static DecodedVector decodeDictionary(BinaryReader reader, LogicalType type, int count) {
         int[] selection = reader.readRequiredField(91, () -> readSelectionVector(reader, count));
         int dictionaryCount = reader.readRequiredField(92, reader::readUlebInt);
         DecodedVector dictionary = decodeVectorBody(reader, type, dictionaryCount);
-        Object[] values = new Object[count];
-        for (int i = 0; i < count; i++) {
-            int idx = selection[i];
+        for (int idx : selection) {
             if (idx < 0 || idx >= dictionary.size()) {
                 throw new QuackProtocolException("Dictionary selection " + idx + " is out of range");
             }
-            values[i] = dictionary.getObject(idx);
         }
-        return new DecodedVector.ObjectVec(type, values);
+        return projectTyped(type, dictionary, selection);
     }
 
     private static DecodedVector decodeSequence(BinaryReader reader, LogicalType type, int count) {
         long start = reader.readRequiredField(91, reader::readSlebLong);
         long increment = reader.readRequiredField(92, reader::readSlebLong);
+        return sequenceTyped(type, count, start, increment);
+    }
+
+    // ---- typed broadcast / project / sequence ----
+
+    /** Produce a vector of {@code count} rows, every row carrying {@code value}. */
+    private static DecodedVector broadcastValueTyped(LogicalType type, Object value, int count) {
+        PhysicalType physical = PhysicalTypeUtil.getPhysicalType(type);
+        if (!physical.isConstantSize() || needsObjectMaterialization(type, physical)) {
+            Object[] arr = new Object[count];
+            if (value != null) java.util.Arrays.fill(arr, value);
+            return new DecodedVector.ObjectVec(type, arr);
+        }
+        if (value == null) {
+            long[] allNull = new long[Validity.wordCount(count)]; // all zeros = all null
+            return zeroFilledPrimitive(type, physical, count, allNull);
+        }
+        return switch (physical) {
+            case BOOL -> {
+                boolean[] arr = new boolean[count];
+                java.util.Arrays.fill(arr, (Boolean) value);
+                yield new DecodedVector.BoolVec(type, arr, null);
+            }
+            case INT8 -> {
+                byte[] arr = new byte[count];
+                java.util.Arrays.fill(arr, ((Number) value).byteValue());
+                yield new DecodedVector.ByteVec(type, arr, null);
+            }
+            case UINT8, INT16 -> {
+                short[] arr = new short[count];
+                java.util.Arrays.fill(arr, ((Number) value).shortValue());
+                yield new DecodedVector.ShortVec(type, arr, null);
+            }
+            case UINT16, INT32 -> {
+                int[] arr = new int[count];
+                java.util.Arrays.fill(arr, ((Number) value).intValue());
+                yield new DecodedVector.IntVec(type, arr, null);
+            }
+            case UINT32, INT64, UINT64 -> {
+                long[] arr = new long[count];
+                java.util.Arrays.fill(arr, ((Number) value).longValue());
+                yield new DecodedVector.LongVec(type, arr, null);
+            }
+            case FLOAT -> {
+                float[] arr = new float[count];
+                java.util.Arrays.fill(arr, ((Number) value).floatValue());
+                yield new DecodedVector.FloatVec(type, arr, null);
+            }
+            case DOUBLE -> {
+                double[] arr = new double[count];
+                java.util.Arrays.fill(arr, ((Number) value).doubleValue());
+                yield new DecodedVector.DoubleVec(type, arr, null);
+            }
+            default -> {
+                // Fall back to object materialization for unusual primitives
+                Object[] arr = new Object[count];
+                java.util.Arrays.fill(arr, value);
+                yield new DecodedVector.ObjectVec(type, arr);
+            }
+        };
+    }
+
+    /** Project a dictionary onto a selection vector, preserving the dictionary's storage type. */
+    private static DecodedVector projectTyped(LogicalType type, DecodedVector dictionary, int[] selection) {
+        int count = selection.length;
+        if (dictionary instanceof DecodedVector.BoolVec d) {
+            boolean[] arr = new boolean[count];
+            long[] validity = null;
+            for (int i = 0; i < count; i++) {
+                int idx = selection[i];
+                if (d.isNull(idx)) {
+                    if (validity == null) validity = Validity.allValid(count);
+                    Validity.setNull(validity, i);
+                } else arr[i] = d.values()[idx];
+            }
+            return new DecodedVector.BoolVec(type, arr, validity);
+        }
+        if (dictionary instanceof DecodedVector.ByteVec d) {
+            byte[] arr = new byte[count];
+            long[] validity = null;
+            for (int i = 0; i < count; i++) {
+                int idx = selection[i];
+                if (d.isNull(idx)) {
+                    if (validity == null) validity = Validity.allValid(count);
+                    Validity.setNull(validity, i);
+                } else arr[i] = d.values()[idx];
+            }
+            return new DecodedVector.ByteVec(type, arr, validity);
+        }
+        if (dictionary instanceof DecodedVector.ShortVec d) {
+            short[] arr = new short[count];
+            long[] validity = null;
+            for (int i = 0; i < count; i++) {
+                int idx = selection[i];
+                if (d.isNull(idx)) {
+                    if (validity == null) validity = Validity.allValid(count);
+                    Validity.setNull(validity, i);
+                } else arr[i] = d.values()[idx];
+            }
+            return new DecodedVector.ShortVec(type, arr, validity);
+        }
+        if (dictionary instanceof DecodedVector.IntVec d) {
+            int[] arr = new int[count];
+            long[] validity = null;
+            for (int i = 0; i < count; i++) {
+                int idx = selection[i];
+                if (d.isNull(idx)) {
+                    if (validity == null) validity = Validity.allValid(count);
+                    Validity.setNull(validity, i);
+                } else arr[i] = d.values()[idx];
+            }
+            return new DecodedVector.IntVec(type, arr, validity);
+        }
+        if (dictionary instanceof DecodedVector.LongVec d) {
+            long[] arr = new long[count];
+            long[] validity = null;
+            for (int i = 0; i < count; i++) {
+                int idx = selection[i];
+                if (d.isNull(idx)) {
+                    if (validity == null) validity = Validity.allValid(count);
+                    Validity.setNull(validity, i);
+                } else arr[i] = d.values()[idx];
+            }
+            return new DecodedVector.LongVec(type, arr, validity);
+        }
+        if (dictionary instanceof DecodedVector.FloatVec d) {
+            float[] arr = new float[count];
+            long[] validity = null;
+            for (int i = 0; i < count; i++) {
+                int idx = selection[i];
+                if (d.isNull(idx)) {
+                    if (validity == null) validity = Validity.allValid(count);
+                    Validity.setNull(validity, i);
+                } else arr[i] = d.values()[idx];
+            }
+            return new DecodedVector.FloatVec(type, arr, validity);
+        }
+        if (dictionary instanceof DecodedVector.DoubleVec d) {
+            double[] arr = new double[count];
+            long[] validity = null;
+            for (int i = 0; i < count; i++) {
+                int idx = selection[i];
+                if (d.isNull(idx)) {
+                    if (validity == null) validity = Validity.allValid(count);
+                    Validity.setNull(validity, i);
+                } else arr[i] = d.values()[idx];
+            }
+            return new DecodedVector.DoubleVec(type, arr, validity);
+        }
+        // ObjectVec fallback (and any other future variants)
+        Object[] arr = new Object[count];
+        for (int i = 0; i < count; i++) arr[i] = dictionary.getObject(selection[i]);
+        return new DecodedVector.ObjectVec(type, arr);
+    }
+
+    /** Materialize an arithmetic-progression sequence into the right vector for the logical type. */
+    private static DecodedVector sequenceTyped(LogicalType type, int count, long start, long increment) {
+        // INTEGER and BIGINT get the typed primitive path; other types (DATE,
+        // TIMESTAMP, BIGINT-via-decimal) materialize into ObjectVec because the
+        // Java value type isn't a primitive.
+        if (type.id() == LogicalTypeId.INTEGER) {
+            int[] arr = new int[count];
+            long v = start;
+            for (int i = 0; i < count; i++) {
+                arr[i] = (int) v;
+                v += increment;
+            }
+            return new DecodedVector.IntVec(type, arr, null);
+        }
+        if (type.id() == LogicalTypeId.BIGINT) {
+            long[] arr = new long[count];
+            long v = start;
+            for (int i = 0; i < count; i++) {
+                arr[i] = v;
+                v += increment;
+            }
+            return new DecodedVector.LongVec(type, arr, null);
+        }
         Object[] values = new Object[count];
         for (int i = 0; i < count; i++) {
             values[i] = decodeSequenceValue(type, start + increment * (long) i);
@@ -125,12 +298,26 @@ public final class VectorCodec {
         return new DecodedVector.ObjectVec(type, values);
     }
 
+    private static DecodedVector zeroFilledPrimitive(LogicalType type, PhysicalType physical,
+                                                     int count, long[] validity) {
+        return switch (physical) {
+            case BOOL -> new DecodedVector.BoolVec(type, new boolean[count], validity);
+            case INT8 -> new DecodedVector.ByteVec(type, new byte[count], validity);
+            case UINT8, INT16 -> new DecodedVector.ShortVec(type, new short[count], validity);
+            case UINT16, INT32 -> new DecodedVector.IntVec(type, new int[count], validity);
+            case UINT32, INT64, UINT64 -> new DecodedVector.LongVec(type, new long[count], validity);
+            case FLOAT -> new DecodedVector.FloatVec(type, new float[count], validity);
+            case DOUBLE -> new DecodedVector.DoubleVec(type, new double[count], validity);
+            default -> new DecodedVector.ObjectVec(type, new Object[count]);
+        };
+    }
+
     private static DecodedVector decodeFlatVector(BinaryReader reader, LogicalType type, int count) {
         if (type.id() == LogicalTypeId.GEOMETRY && !reader.eof() && reader.peekFieldId() == 99) {
             reader.readRequiredField(99, reader::readUlebInt);
         }
         boolean hasValidity = reader.readRequiredField(100, reader::readBool);
-        boolean[] validity = hasValidity
+        long[] validity = hasValidity
                 ? reader.readRequiredField(101, () -> readValidityMask(reader, count))
                 : null;
         PhysicalType physicalType = PhysicalTypeUtil.getPhysicalType(type);
@@ -151,7 +338,7 @@ public final class VectorCodec {
                         () -> reader.readList(i -> reader.readStringBytes()));
                 Object[] values = new Object[raw.size()];
                 for (int i = 0; i < raw.size(); i++) {
-                    values[i] = isValid(validity, i) ? decodeStringLikeValue(type, raw.get(i)) : null;
+                    values[i] = Validity.isValid(validity, i) ? decodeStringLikeValue(type, raw.get(i)) : null;
                 }
                 yield new DecodedVector.ObjectVec(type, values);
             }
@@ -167,7 +354,7 @@ public final class VectorCodec {
                         }));
                 Object[] values = new Object[count];
                 for (int row = 0; row < count; row++) {
-                    if (!isValid(validity, row)) {
+                    if (!Validity.isValid(validity, row)) {
                         values[row] = null;
                         continue;
                     }
@@ -188,7 +375,7 @@ public final class VectorCodec {
                         () -> decodeVector(reader, childType, listSize));
                 Object[] values = new Object[count];
                 for (int row = 0; row < count; row++) {
-                    if (!isValid(validity, row)) {
+                    if (!Validity.isValid(validity, row)) {
                         values[row] = null;
                         continue;
                     }
@@ -213,7 +400,7 @@ public final class VectorCodec {
                         () -> decodeVector(reader, childType, arraySize * count));
                 Object[] values = new Object[count];
                 for (int row = 0; row < count; row++) {
-                    if (!isValid(validity, row)) {
+                    if (!Validity.isValid(validity, row)) {
                         values[row] = null;
                         continue;
                     }
@@ -234,7 +421,7 @@ public final class VectorCodec {
     // ---- typed fixed-flat decoding ----
 
     private static DecodedVector decodeFixedFlatVector(LogicalType type, PhysicalType physicalType,
-                                                       byte[] bytes, int count, boolean[] validity) {
+                                                       byte[] bytes, int count, long[] validity) {
         BinaryReader reader = new BinaryReader(bytes);
 
         // Logical types that materialize into non-primitive Java objects always go via ObjectVec.
@@ -242,7 +429,7 @@ public final class VectorCodec {
             Object[] values = new Object[count];
             for (int i = 0; i < count; i++) {
                 Object v = decodeFixedValue(reader, type, physicalType);
-                values[i] = isValid(validity, i) ? v : null;
+                values[i] = Validity.isValid(validity, i) ? v : null;
             }
             reader.assertEof();
             return new DecodedVector.ObjectVec(type, values);
@@ -468,27 +655,14 @@ public final class VectorCodec {
         return out;
     }
 
-    private static boolean[] readValidityMask(BinaryReader reader, int count) {
-        int expected = validityMaskSize(count);
+    private static long[] readValidityMask(BinaryReader reader, int count) {
+        int expected = Validity.wireByteCount(count);
         byte[] bytes = reader.readBlob();
         if (bytes.length != expected) {
             throw new QuackProtocolException("Validity mask has " + bytes.length
                     + " bytes, expected " + expected);
         }
-        boolean[] out = new boolean[count];
-        for (int i = 0; i < count; i++) {
-            int b = bytes[i / 8] & 0xFF;
-            out[i] = (b & (1 << (i % 8))) != 0;
-        }
-        return out;
-    }
-
-    private static int validityMaskSize(int count) {
-        return ((count + 63) / 64) * 8;
-    }
-
-    private static boolean isValid(boolean[] validity, int index) {
-        return validity == null || validity[index];
+        return Validity.fromBytes(bytes, count);
     }
 
     private static List<ListEntry> readListEntries(BinaryReader reader, int count) {

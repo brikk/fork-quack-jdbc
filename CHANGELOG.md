@@ -6,6 +6,29 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed — Bitset validity + typed CONSTANT/DICTIONARY/SEQUENCE paths
+
+- **Bitset-packed validity.** `DecodedVector`'s {@code boolean[] validity}
+  is replaced with a {@code long[]} bitmap that holds one bit per row.
+  Wire format hasn't changed (still a byte-aligned bitmap), but the
+  driver-side memory footprint is now 8× smaller for the validity mask
+  (1 bit/row instead of 1 byte/row from a {@code boolean[]}). The
+  validity reader produces {@code long[]} directly via a packed
+  little-endian read.
+- **`Validity` helper** with bit-test, all-valid initializer, byte
+  round-trip, and set-valid/set-null helpers — covered by 7 new unit
+  tests pinning bit ordering and round-trips.
+- **CONSTANT vectors** now broadcast a primitive value into the right
+  typed primitive vector (e.g., `SELECT 42::INTEGER FROM range(1000)` →
+  `IntVec(int[])`) instead of falling back to `ObjectVec`.
+- **DICTIONARY vectors** preserve the dictionary's storage type when
+  projecting through the selection vector — typed in → typed out.
+- **SEQUENCE vectors** for INTEGER and BIGINT logical types
+  materialize directly into `IntVec` / `LongVec` (the common
+  `SELECT i FROM range(...)` case).
+- 2 new integration tests in `StreamingIntegrationTest` pin the typed
+  SEQUENCE and CONSTANT paths (total: 65 tests).
+
 ### Changed — Streaming cursor + typed primitive vectors (memory rewrite)
 
 - **Streaming cursor.** `QuackSession.prepare(sql)` is replaced by
