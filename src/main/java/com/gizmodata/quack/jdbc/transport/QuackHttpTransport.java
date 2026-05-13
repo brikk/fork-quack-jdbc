@@ -6,12 +6,20 @@ import com.gizmodata.quack.jdbc.codec.QuackConstants;
 import com.gizmodata.quack.jdbc.message.MessageCodec;
 import com.gizmodata.quack.jdbc.message.QuackMessage;
 
+import java.io.IOException;
+import java.net.ConnectException;
+import java.net.Inet6Address;
+import java.net.InetAddress;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.UnknownHostException;
 import java.net.http.HttpClient;
+import java.net.http.HttpConnectTimeoutException;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.nio.channels.ClosedChannelException;
 import java.time.Duration;
 
 /**
@@ -19,6 +27,13 @@ import java.time.Duration;
  * {@code application/duckdb} request bodies to {@code POST /quack} and
  * returns the decoded server response (or raises a
  * {@link QuackServerException} for {@code ERROR_RESPONSE}).
+ *
+ * <p>When the endpoint host is a hostname (not a literal IP), every
+ * address returned by {@link InetAddress#getAllByName(String)} is tried
+ * in order. This is essential for hosts like {@code localhost} that
+ * resolve to both IPv4 and IPv6 — JDK {@link HttpClient} otherwise gives
+ * up after the first address fails, even if a server is reachable on
+ * one of the other addresses.
  */
 public final class QuackHttpTransport {
 
@@ -41,31 +56,91 @@ public final class QuackHttpTransport {
 
     public QuackMessage send(QuackMessage request) {
         byte[] body = MessageCodec.encode(request);
-        HttpRequest httpRequest = HttpRequest.newBuilder(endpoint)
-                .timeout(requestTimeout)
-                .header("Content-Type", QuackConstants.DUCKDB_MIME_TYPE)
-                .header("Accept", QuackConstants.DUCKDB_MIME_TYPE)
-                .POST(BodyPublishers.ofByteArray(body))
-                .build();
 
-        HttpResponse<byte[]> response;
+        InetAddress[] addresses = resolveCandidates();
+        IOException lastFailure = null;
+        for (int i = 0; i < addresses.length; i++) {
+            URI attempt = endpointFor(addresses[i]);
+            HttpRequest httpRequest = HttpRequest.newBuilder(attempt)
+                    .timeout(requestTimeout)
+                    .header("Content-Type", QuackConstants.DUCKDB_MIME_TYPE)
+                    .header("Accept", QuackConstants.DUCKDB_MIME_TYPE)
+                    .POST(BodyPublishers.ofByteArray(body))
+                    .build();
+
+            HttpResponse<byte[]> response;
+            try {
+                response = httpClient.send(httpRequest, BodyHandlers.ofByteArray());
+            } catch (ConnectException | HttpConnectTimeoutException | ClosedChannelException e) {
+                lastFailure = e;
+                continue;
+            } catch (IOException e) {
+                throw new QuackException(buildErrorMessage(e, attempt), e);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new QuackException("Quack HTTP request was interrupted", e);
+            }
+
+            if (response.statusCode() / 100 != 2) {
+                throw new QuackException("Quack HTTP returned status " + response.statusCode()
+                        + " from " + attempt);
+            }
+            QuackMessage decoded = MessageCodec.decode(response.body());
+            if (decoded instanceof QuackMessage.ErrorResponse err) {
+                throw new QuackServerException(err.message());
+            }
+            return decoded;
+        }
+
+        throw new QuackException(buildExhaustedMessage(addresses, lastFailure), lastFailure);
+    }
+
+    private InetAddress[] resolveCandidates() {
+        String host = endpoint.getHost();
+        if (host == null) {
+            throw new QuackException("Quack endpoint has no host: " + endpoint);
+        }
         try {
-            response = httpClient.send(httpRequest, BodyHandlers.ofByteArray());
-        } catch (java.io.IOException e) {
-            throw new QuackException("Quack HTTP request failed: " + e.getMessage(), e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new QuackException("Quack HTTP request was interrupted", e);
+            return InetAddress.getAllByName(host);
+        } catch (UnknownHostException e) {
+            throw new QuackException("Quack endpoint host could not be resolved: " + host, e);
         }
+    }
 
-        if (response.statusCode() / 100 != 2) {
-            throw new QuackException("Quack HTTP returned status " + response.statusCode()
-                    + " from " + endpoint);
+    private URI endpointFor(InetAddress address) {
+        String literal = address instanceof Inet6Address
+                ? "[" + address.getHostAddress() + "]"
+                : address.getHostAddress();
+        try {
+            return new URI(endpoint.getScheme(), null, literal, endpoint.getPort(),
+                    endpoint.getPath(), endpoint.getQuery(), endpoint.getFragment());
+        } catch (URISyntaxException e) {
+            throw new QuackException("Failed to build address-specific Quack URI for " + address, e);
         }
-        QuackMessage decoded = MessageCodec.decode(response.body());
-        if (decoded instanceof QuackMessage.ErrorResponse err) {
-            throw new QuackServerException(err.message());
+    }
+
+    private static String buildErrorMessage(Throwable cause, URI attempted) {
+        String detail = cause.getMessage();
+        if (detail == null || detail.isEmpty()) {
+            detail = cause.getClass().getSimpleName();
         }
-        return decoded;
+        return "Quack HTTP request to " + attempted + " failed: " + detail;
+    }
+
+    private String buildExhaustedMessage(InetAddress[] addresses, Throwable cause) {
+        StringBuilder sb = new StringBuilder("Quack HTTP connect failed for ")
+                .append(endpoint.getHost()).append(":").append(endpoint.getPort())
+                .append(" (tried ").append(addresses.length).append(" address(es): ");
+        for (int i = 0; i < addresses.length; i++) {
+            if (i > 0) sb.append(", ");
+            sb.append(addresses[i].getHostAddress());
+        }
+        sb.append(")");
+        if (cause != null) {
+            String detail = cause.getMessage();
+            if (detail == null || detail.isEmpty()) detail = cause.getClass().getSimpleName();
+            sb.append(": ").append(detail);
+        }
+        return sb.toString();
     }
 }

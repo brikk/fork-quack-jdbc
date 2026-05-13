@@ -6,6 +6,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- `QuackHttpTransport` now iterates every address returned by
+  `InetAddress.getAllByName(host)` instead of relying on JDK
+  `HttpClient`'s first-address behavior. Hosts like `localhost` that
+  resolve to both `127.0.0.1` and `::1` now succeed against a server
+  bound to either family — previously a `ConnectException` on the first
+  address (IPv4 by default on macOS) aborted the whole request even
+  though an IPv6 listener was reachable.
+- Error messages no longer say `Quack HTTP request failed: null` when
+  the cause has no message; the exception class name is used as a
+  fallback. The exhausted-addresses error names every address that was
+  tried, including the underlying failure detail.
+
 ### Added
 - First cut of the JDBC driver for DuckDB's Quack remote protocol.
 - `BinaryReader` / `BinaryWriter` for DuckDB's BinarySerializer wire format
