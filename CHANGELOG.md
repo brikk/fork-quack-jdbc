@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.0-alpha.1] — 2026-05-13
+
+First public alpha release. The Quack protocol itself is in beta until
+DuckDB v2.0 ships in September 2026 — this driver is pinned to
+[`duckdb/duckdb-quack@daae4826`](https://github.com/duckdb/duckdb-quack/commit/daae4826f57986fbb6cc2116316f89c673814b23)
+(2026-05-10). Don't use this in production; do use it to evaluate
+DBeaver / DataGrip / Spark / direct JDBC against a remote DuckDB.
+
+All [Unreleased] entries below shipped in this release.
+
 ### Added — Release distribution
 
 - **GitHub Release jars** are now attached to every tagged release by
