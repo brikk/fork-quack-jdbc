@@ -1,6 +1,7 @@
 package com.gizmodata.quack.jdbc.sql;
 
 import com.gizmodata.quack.jdbc.QuackException;
+import com.gizmodata.quack.jdbc.transport.QuackTransportFactory;
 import com.gizmodata.quack.jdbc.transport.QuackUri;
 
 import java.sql.DatabaseMetaData;
@@ -18,9 +19,13 @@ public final class QuackConnection extends SkeletalConnection {
     private volatile boolean closed;
 
     public QuackConnection(QuackUri uri) {
+        this(uri, QuackTransportFactory.http());
+    }
+
+    public QuackConnection(QuackUri uri, QuackTransportFactory transportFactory) {
         this.uri = uri;
         try {
-            this.session = QuackSession.connect(uri);
+            this.session = QuackSession.connect(uri, transportFactory);
         } catch (RuntimeException e) {
             throw new QuackException(e.getMessage(), e);
         }

@@ -1,0 +1,106 @@
+package com.gizmodata.quack.jdbc.sql;
+
+import com.gizmodata.quack.jdbc.message.MessageHeader;
+import com.gizmodata.quack.jdbc.message.MessageType;
+import com.gizmodata.quack.jdbc.message.QuackMessage;
+import com.gizmodata.quack.jdbc.transport.QuackTransport;
+import com.gizmodata.quack.jdbc.transport.QuackUri;
+import org.junit.jupiter.api.Test;
+
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.Properties;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class QuackDriverCustomTransportTest {
+
+    @Test
+    void driverConnectUsesCustomTransportFactory() throws SQLException {
+        QuackDriver driver = new QuackDriver();
+        RecordingTransport transport = new RecordingTransport("custom-connection");
+        AtomicReference<QuackUri> factoryUri = new AtomicReference<>();
+
+        Properties properties = new Properties();
+        properties.setProperty("token", "prop-token");
+        properties.setProperty("tls", "true");
+
+        try (Connection connection = driver.connect(
+                "jdbc:quack://example.test:1234/db?token=url-token",
+                properties,
+                uri -> {
+                    factoryUri.set(uri);
+                    return transport;
+                })) {
+            QuackConnection quackConnection = assertInstanceOf(QuackConnection.class, connection);
+            assertEquals("custom-connection", quackConnection.session().connectionId());
+        }
+
+        QuackUri uri = factoryUri.get();
+        assertEquals("example.test", uri.host());
+        assertEquals(1234, uri.port());
+        assertEquals(Optional.of("db"), uri.database());
+        assertTrue(uri.tls());
+        assertEquals(Optional.of("url-token"), uri.token());
+
+        assertEquals(2, transport.requests.size());
+        QuackMessage firstRequest = transport.requests.get(0);
+        QuackMessage secondRequest = transport.requests.get(1);
+        assertInstanceOf(QuackMessage.ConnectionRequest.class, firstRequest);
+        assertEquals(Optional.of("url-token"),
+                ((QuackMessage.ConnectionRequest) firstRequest).authString());
+        assertInstanceOf(QuackMessage.DisconnectMessage.class, secondRequest);
+        assertEquals(Optional.of("custom-connection"), secondRequest.header().connectionId());
+    }
+
+    @Test
+    void nullTransportFromFactoryFailsCleanly() {
+        QuackDriver driver = new QuackDriver();
+
+        SQLException exception = assertThrows(SQLException.class,
+                () -> driver.connect("jdbc:quack://example.test:1234", new Properties(), uri -> null));
+
+        assertTrue(exception.getMessage().contains("transportFactory returned null"),
+                "expected null factory result message, got: " + exception.getMessage());
+    }
+
+    private static final class RecordingTransport implements QuackTransport {
+
+        private final String connectionId;
+        private final List<QuackMessage> requests = new ArrayList<>();
+
+        RecordingTransport(String connectionId) {
+            this.connectionId = connectionId;
+        }
+
+        @Override
+        public QuackMessage send(QuackMessage request) {
+            requests.add(request);
+            if (request instanceof QuackMessage.ConnectionRequest) {
+                long clientQueryId = request.header().clientQueryId().orElse(0L);
+                return new QuackMessage.ConnectionResponse(
+                        MessageHeader.of(MessageType.CONNECTION_RESPONSE)
+                                .withConnectionId(connectionId)
+                                .withClientQueryId(clientQueryId),
+                        Optional.empty(),
+                        Optional.empty(),
+                        Optional.empty());
+            }
+            if (request instanceof QuackMessage.DisconnectMessage) {
+                long clientQueryId = request.header().clientQueryId().orElse(0L);
+                return new QuackMessage.SuccessResponse(
+                        MessageHeader.of(MessageType.SUCCESS_RESPONSE)
+                                .withConnectionId(connectionId)
+                                .withClientQueryId(clientQueryId));
+            }
+            throw new AssertionError("unexpected request: " + request.getClass().getSimpleName());
+        }
+    }
+}

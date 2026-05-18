@@ -35,7 +35,7 @@ import java.time.Duration;
  * up after the first address fails, even if a server is reachable on
  * one of the other addresses.
  */
-public final class QuackHttpTransport {
+public final class QuackHttpTransport implements QuackTransport {
 
     private final URI endpoint;
     private final HttpClient httpClient;
@@ -54,6 +54,7 @@ public final class QuackHttpTransport {
         this.requestTimeout = requestTimeout;
     }
 
+    @Override
     public QuackMessage send(QuackMessage request) {
         byte[] body = MessageCodec.encode(request);
 

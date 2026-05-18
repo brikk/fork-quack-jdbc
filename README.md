@@ -98,6 +98,26 @@ jdbc:quack://host[:port][/database][?token=…&tls=…]
 `token` and `tls` can be set on the URL or via `java.util.Properties`
 passed to `DriverManager.getConnection`. URL values take precedence.
 
+### Custom HTTP transport
+
+Applications that need to customize the HTTP layer can bypass
+`DriverManager` and pass a transport factory to `QuackDriver`:
+
+```java
+HttpClient httpClient = HttpClient.newBuilder()
+        .connectTimeout(Duration.ofSeconds(5))
+        .build();
+Duration requestTimeout = Duration.ofSeconds(30);
+
+QuackDriver driver = new QuackDriver();
+try (Connection conn = driver.connect(
+        "jdbc:quack://127.0.0.1:9494?token=my-secret-token",
+        new Properties(),
+        uri -> new QuackHttpTransport(uri.httpUri(), httpClient, requestTimeout))) {
+    // use the connection normally
+}
+```
+
 ## DBeaver
 
 `quack-jdbc` implements the full JDBC `DatabaseMetaData` surface that

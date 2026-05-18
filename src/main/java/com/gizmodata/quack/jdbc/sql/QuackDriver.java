@@ -1,6 +1,7 @@
 package com.gizmodata.quack.jdbc.sql;
 
 import com.gizmodata.quack.jdbc.transport.QuackUri;
+import com.gizmodata.quack.jdbc.transport.QuackTransportFactory;
 
 import java.sql.Connection;
 import java.sql.Driver;
@@ -27,12 +28,17 @@ public final class QuackDriver implements Driver {
 
     @Override
     public Connection connect(String url, Properties info) throws SQLException {
+        return connect(url, info, QuackTransportFactory.http());
+    }
+
+    public Connection connect(String url, Properties info,
+                              QuackTransportFactory transportFactory) throws SQLException {
         if (!acceptsURL(url)) {
             return null;
         }
         try {
             QuackUri parsed = QuackUri.parse(url, info != null ? info : new Properties());
-            return new QuackConnection(parsed);
+            return new QuackConnection(parsed, transportFactory);
         } catch (RuntimeException e) {
             throw new SQLException(e.getMessage(), e);
         }
