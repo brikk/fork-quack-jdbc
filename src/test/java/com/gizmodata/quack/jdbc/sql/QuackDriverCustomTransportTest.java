@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import java.sql.Connection;
 import java.sql.DriverPropertyInfo;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -32,9 +33,11 @@ class QuackDriverCustomTransportTest {
         Properties properties = new Properties();
         properties.setProperty("token", "prop-token");
         properties.setProperty("tls", "true");
+        properties.setProperty("connectTimeout", "99");
+        properties.setProperty("requestTimeout", "99");
 
         try (Connection connection = driver.connect(
-                "jdbc:quack://example.test:1234/db?token=url-token",
+                "jdbc:quack://example.test:1234/db?token=url-token&connectTimeout=3&requestTimeout=PT4S",
                 properties,
                 uri -> {
                     factoryUri.set(uri);
@@ -50,6 +53,8 @@ class QuackDriverCustomTransportTest {
         assertEquals(Optional.of("db"), uri.database());
         assertTrue(uri.tls());
         assertEquals(Optional.of("url-token"), uri.token());
+        assertEquals(Duration.ofSeconds(3), uri.connectTimeout());
+        assertEquals(Duration.ofSeconds(4), uri.requestTimeout());
 
         assertEquals(2, transport.requests.size());
         QuackMessage firstRequest = transport.requests.get(0);

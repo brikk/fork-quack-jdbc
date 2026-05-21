@@ -97,13 +97,40 @@ jdbc:quack://host[:port][/database][?token=…&tls=…]
 | `connectTimeout` | 10      | HTTP connect timeout, as seconds or an ISO-8601 duration like `PT5S`.    |
 | `requestTimeout` | 60      | Per-request HTTP timeout, as seconds or an ISO-8601 duration like `PT30S`. |
 
-`token` and `tls` can be set on the URL or via `java.util.Properties`
+Connection properties can be set on the URL or via `java.util.Properties`
 passed to `DriverManager.getConnection`. URL values take precedence.
 
-### Custom HTTP transport
+### Basic timeout configuration
+
+The built-in HTTP transport reads `connectTimeout` and `requestTimeout`
+directly from the JDBC URL or connection properties:
+
+```java
+try (Connection conn = DriverManager.getConnection(
+        "jdbc:quack://127.0.0.1:9494?token=my-secret-token&connectTimeout=5&requestTimeout=30")) {
+    // use the connection normally
+}
+```
+
+The same options can be supplied with `Properties`:
+
+```java
+Properties props = new Properties();
+props.setProperty("token", "my-secret-token");
+props.setProperty("connectTimeout", "5");
+props.setProperty("requestTimeout", "PT30S");
+
+try (Connection conn = DriverManager.getConnection("jdbc:quack://127.0.0.1:9494", props)) {
+    // use the connection normally
+}
+```
+
+### Fully custom HTTP transport
 
 Applications that need to customize the HTTP layer can bypass
-`DriverManager` and pass a transport factory to `QuackDriver`:
+`DriverManager` and pass a transport factory to `QuackDriver`. The factory
+receives the same parsed `QuackUri`, so URL parameters and connection
+properties are available to custom transports too:
 
 ```java
 QuackDriver driver = new QuackDriver();
