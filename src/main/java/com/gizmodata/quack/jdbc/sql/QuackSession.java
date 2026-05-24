@@ -8,6 +8,8 @@ import com.gizmodata.quack.jdbc.message.MessageHeader;
 import com.gizmodata.quack.jdbc.message.MessageType;
 import com.gizmodata.quack.jdbc.message.QuackMessage;
 import com.gizmodata.quack.jdbc.transport.QuackHttpTransport;
+import com.gizmodata.quack.jdbc.transport.QuackTransport;
+import com.gizmodata.quack.jdbc.transport.QuackTransportFactory;
 import com.gizmodata.quack.jdbc.transport.QuackUri;
 import com.gizmodata.quack.jdbc.type.LogicalType;
 
@@ -15,28 +17,42 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 
-/** Live Quack session: connection id, query-id sequence, and an HTTP transport. */
+/** Live Quack session: connection id, query-id sequence, and a Quack transport. */
 public final class QuackSession implements AutoCloseable {
 
     private final QuackUri uri;
-    private final QuackHttpTransport transport;
+    private final QuackTransport transport;
     private final AtomicLong queryIdSeq = new AtomicLong(1);
     private volatile String connectionId;
     private volatile boolean closed;
 
+    public QuackSession(QuackUri uri, QuackTransport transport) {
+        this.uri = Objects.requireNonNull(uri, "uri");
+        this.transport = Objects.requireNonNull(transport, "transport");
+    }
+
     public QuackSession(QuackUri uri, QuackHttpTransport transport) {
-        this.uri = uri;
-        this.transport = transport;
+        this(uri, (QuackTransport) transport);
     }
 
     public static QuackSession connect(QuackUri uri) {
-        QuackHttpTransport transport = new QuackHttpTransport(uri.httpUri());
+        return connect(uri, QuackTransportFactory.http());
+    }
+
+    public static QuackSession connect(QuackUri uri, QuackTransport transport) {
         QuackSession session = new QuackSession(uri, transport);
         session.handshake();
         return session;
+    }
+
+    public static QuackSession connect(QuackUri uri, QuackTransportFactory transportFactory) {
+        Objects.requireNonNull(transportFactory, "transportFactory");
+        return connect(uri, Objects.requireNonNull(
+                transportFactory.create(uri), "transportFactory returned null"));
     }
 
     public QuackUri uri() {
