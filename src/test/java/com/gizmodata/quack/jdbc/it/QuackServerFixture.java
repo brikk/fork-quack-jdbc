@@ -54,7 +54,7 @@ public final class QuackServerFixture implements AutoCloseable {
         String token = DEFAULT_TOKEN;
         Path logFile = Files.createTempFile("quack-jdbc-it-", ".log");
 
-        ProcessBuilder pb = new ProcessBuilder(duckdb, "-unsigned");
+        ProcessBuilder pb = new ProcessBuilder(duckdb);
         pb.redirectErrorStream(true);
         Process process = pb.start();
 
@@ -89,7 +89,7 @@ public final class QuackServerFixture implements AutoCloseable {
         try {
             writer.write(".mode csv\n");
             writer.write(".headers on\n");
-            writer.write("INSTALL quack FROM core_nightly;\n");
+            writer.write("INSTALL quack;\n");
             writer.write("LOAD quack;\n");
             writer.write("CALL quack_serve('quack:127.0.0.1:" + port + "', token=>'" + token + "');\n");
             writer.flush();

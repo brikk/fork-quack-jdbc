@@ -14,20 +14,26 @@ familiar `jdbc:quack://` URL.
 
 > **Status:** Experimental / alpha. The Quack protocol itself shipped on
 > 2026-05-12 and will stabilize as part of DuckDB v2.0 in September 2026.
-> Expect breaking changes between now and then. This driver pins to
-> [`duckdb/duckdb-quack@daae4826`](https://github.com/duckdb/duckdb-quack/commit/daae4826f57986fbb6cc2116316f89c673814b23)
-> (2026-05-10) and is tested against DuckDB CLI v1.5.2.
+> Expect breaking changes between now and then. As of DuckDB v1.5.3
+> ("Variegata"), `quack` ships as a **core** extension — no more
+> `core_nightly` repository needed. This driver is tested against the
+> `quack` extension bundled with DuckDB CLI v1.5.3.
 
 ## Quickstart
 
-### 1. Start a Quack server (any DuckDB v1.5.2+)
+### 1. Start a Quack server (DuckDB v1.5.3+)
 
 ```sql
--- in any DuckDB session, with the unsigned extensions flag enabled (`duckdb -unsigned`)
-INSTALL quack FROM core_nightly;
+-- in any DuckDB session
+INSTALL quack;
 LOAD quack;
 CALL quack_serve('quack:127.0.0.1:9494', token=>'my-secret-token');
 ```
+
+The `quack` extension is signed and lives in the **core** repository as
+of DuckDB v1.5.3, so no `-unsigned` flag and no `core_nightly` repository
+are required. (Earlier `1.5.x` builds need `INSTALL quack FROM core_nightly`
+with `duckdb -unsigned`.)
 
 ### 2. Add the driver to your project
 

@@ -55,12 +55,19 @@ mvn -Dtest='!Quack*IntegrationTest' test    # unit only
 Integration tests spawn a real DuckDB CLI as a Quack server. They auto-skip
 when `duckdb` isn't on PATH; override with `QUACK_IT_DUCKDB=/path/to/duckdb`.
 
-## Pinned Quack version
+## Quack extension version
 
-duckdb-quack has no release tags as of 2026-05-13, so we pin to commit
-`daae4826f57986fbb6cc2116316f89c673814b23` (2026-05-10, current main).
-Update the pin when the upstream tags a release for DuckDB 2.0 (planned
-September 2026).
+As of DuckDB v1.5.3 ("Variegata"), `quack` ships as a **core** signed
+extension — the integration fixture runs `INSTALL quack; LOAD quack;`
+against a stock `duckdb` binary (no `-unsigned`, no `core_nightly`).
+For pre-1.5.3 DuckDB builds, use `INSTALL quack FROM core_nightly` with
+`duckdb -unsigned`.
+
+The wire format was clean-room ported from the TypeScript reference
+(`@quack-protocol/sdk`) at upstream commit
+`daae4826f57986fbb6cc2116316f89c673814b23` (2026-05-10). The full driver
+suite (83 tests) currently passes against DuckDB v1.5.3's bundled
+`quack`. Re-verify when DuckDB cuts a new patch release.
 
 ## DBeaver metadata reference
 

@@ -8,6 +8,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 (nothing yet)
 
+## [0.2.0-alpha.2] — 2026-05-24
+
+### Changed
+- Integration tests now `INSTALL quack;` from the **core** repository,
+  matching DuckDB v1.5.3 ("Variegata") where Quack ships as a signed
+  core extension. The `-unsigned` flag and `core_nightly` repository are
+  no longer required. The full 83-test suite passes against the
+  `quack` extension bundled with DuckDB CLI v1.5.3 — no driver code
+  changes needed, the wire format is unchanged.
+- README and CLAUDE.md updated to reflect the v1.5.3 install path; the
+  pre-1.5.3 `INSTALL quack FROM core_nightly` recipe is kept as a note
+  for users on older builds.
+
 ## [0.2.0-alpha.1] — 2026-05-24
 
 ### Added — Pluggable transport SPI (#1)
