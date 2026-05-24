@@ -8,6 +8,40 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 (nothing yet)
 
+## [0.2.0-alpha.1] — 2026-05-24
+
+### Added — Pluggable transport SPI (#1)
+
+- **`QuackTransport` interface** and **`QuackTransportFactory`**
+  (functional, takes a parsed `QuackUri`) let applications supply their
+  own transport implementation — a custom `HttpClient` with proxies /
+  mTLS / interceptors, or an in-process fake for testing.
+- **`QuackDriver.connect(url, properties, transportFactory)`** overload
+  threads the factory through `QuackConnection` and `QuackSession`. The
+  no-factory `connect(url, properties)` path is unchanged and still uses
+  the built-in HTTP transport.
+- `QuackHttpTransport` now implements `QuackTransport`; the existing
+  `QuackSession(QuackUri, QuackHttpTransport)` constructor is retained
+  for binary compatibility.
+
+### Added — Configurable HTTP timeouts
+
+- **`connectTimeout`** and **`requestTimeout`** JDBC URL / `Properties`
+  options, accepted as either a plain integer (seconds) or an ISO-8601
+  duration like `PT30S`. Defaults remain 10s connect / 60s request.
+  Surfaced via `Driver.getPropertyInfo` so DBeaver / DataGrip show them
+  in their connection dialogs.
+- Invalid / non-positive values raise a `QuackException` at parse time.
+
+### Tests
+- New `QuackDriverCustomTransportTest` exercising factory injection,
+  null-factory error handling, `getPropertyInfo` shape, and binary
+  compatibility of the legacy `QuackSession` constructor.
+- New `QuackUriTest` cases for timeout parsing (URL, properties, invalid
+  values) and a `QuackHttpTransportTest` case for `from(QuackUri)`.
+
+Total suite: 83 tests, all green.
+
 ## [0.1.0-alpha.1] — 2026-05-13
 
 Published to Maven Central as
