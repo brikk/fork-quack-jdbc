@@ -9,10 +9,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 
 - Token provider properties for safer shared JDBC configurations:
-  `tokenEnv` and `tokenFile`.
+  `tokenEnv` and `tokenFile`. Both are accepted via connection
+  `Properties` only — they are rejected on the JDBC URL so that a pasted
+  or shared URL cannot read a local secret and send it to an
+  attacker-chosen host.
 
 ### Fixed
 
+- Manual-commit transactions now work with DataGrip, DBeaver, and other
+  tools (#4). With `autoCommit` off, the driver lazily issues
+  `BEGIN TRANSACTION` before the first statement, so a later
+  `Connection.commit()` no longer fails with
+  "cannot commit - no transaction is active". `commit()`/`rollback()`
+  with no pending transaction are harmless no-ops, and re-enabling
+  auto-commit mid-transaction commits it per the JDBC spec.
 - HTTPS transport now keeps the original hostname in request URIs instead
   of replacing it with a resolved IP address. This preserves TLS SNI and
   certificate hostname verification for gateways and load balancers that

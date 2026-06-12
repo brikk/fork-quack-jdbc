@@ -77,6 +77,16 @@ public record QuackUri(String host,
                         URLDecoder.decode(value, StandardCharsets.UTF_8));
             }
         }
+        // tokenEnv/tokenFile make the driver read a local secret and send it
+        // to the host in the URL — accepting them from the URL would let a
+        // pasted or shared URL exfiltrate an arbitrary env var or file to an
+        // attacker-chosen server. Connection Properties only.
+        for (String key : new String[]{QuackTokenResolver.TOKEN_ENV, QuackTokenResolver.TOKEN_FILE}) {
+            if (params.containsKey(key)) {
+                throw new QuackException("Quack JDBC property " + key
+                        + " is only accepted via connection Properties, not the JDBC URL");
+            }
+        }
         for (String key : properties.stringPropertyNames()) {
             params.putIfAbsent(key, properties.getProperty(key));
         }

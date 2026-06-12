@@ -111,6 +111,11 @@ to `DriverManager.getConnection`. URL values take precedence. Token
 resolution checks `token`, then `password`, then `tokenEnv`, then
 `tokenFile`.
 
+`tokenEnv` and `tokenFile` are the exception: they are only accepted via
+`Properties` (or a tool's driver-properties panel) and are rejected if
+they appear on the URL. A pasted or shared URL must not be able to read
+a local secret and send it to whatever host the URL names.
+
 ### Basic timeout configuration
 
 The built-in HTTP transport reads `connectTimeout` and `requestTimeout`
@@ -142,7 +147,8 @@ For desktop tools such as DataGrip, avoid putting `token=...` directly
 in the JDBC URL. URLs and plain driver properties are easy to copy, log,
 or commit by accident.
 
-Prefer `tokenFile` or `tokenEnv` for shared desktop-tool configurations:
+Prefer `tokenFile` or `tokenEnv`, set as driver properties (not on the
+URL), for shared desktop-tool configurations:
 
 ```text
 tokenFile=/Users/alice/.config/quack/prod.token

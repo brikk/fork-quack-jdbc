@@ -1,5 +1,6 @@
 package com.gizmodata.quack.jdbc.transport;
 
+import com.gizmodata.quack.jdbc.QuackException;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -54,6 +55,19 @@ class QuackUriTest {
         props.setProperty("password", "from-password");
         QuackUri u = QuackUri.parse("jdbc:quack://h:9494", props);
         assertEquals("from-password", u.token().orElseThrow());
+    }
+
+    @Test
+    void rejectsTokenEnvAndTokenFileOnTheUrl() {
+        // A pasted URL must not be able to read a local secret and ship it
+        // to whatever host the URL names.
+        QuackException envEx = assertThrows(QuackException.class,
+                () -> QuackUri.parse("jdbc:quack://h:9494?tokenEnv=AWS_SECRET_ACCESS_KEY"));
+        assertTrue(envEx.getMessage().contains("tokenEnv"));
+
+        QuackException fileEx = assertThrows(QuackException.class,
+                () -> QuackUri.parse("jdbc:quack://h:9494?tokenFile=/etc/passwd"));
+        assertTrue(fileEx.getMessage().contains("tokenFile"));
     }
 
     @Test
