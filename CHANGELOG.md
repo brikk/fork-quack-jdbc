@@ -6,6 +6,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+(nothing yet)
+
+## [0.2.0-alpha.4] — 2026-06-12
+
+Contributed in part by Jose Davila-Ciullo (@jdctinuiti) — thanks!
+
 ### Added
 
 - Token provider properties for safer shared JDBC configurations:
