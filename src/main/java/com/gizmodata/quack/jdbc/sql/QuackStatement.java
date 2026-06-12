@@ -82,6 +82,7 @@ public class QuackStatement extends SkeletalStatement {
     @Override
     public boolean execute(String sql) throws SQLException {
         checkOpen();
+        connection.beginTransactionIfNeeded();
         try {
             QuackSession.Cursor cursor = connection.session().cursor(sql);
             DataChunk first = cursor.peekFirstChunk();

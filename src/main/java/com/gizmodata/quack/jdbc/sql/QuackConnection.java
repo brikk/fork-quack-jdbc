@@ -14,6 +14,7 @@ public final class QuackConnection extends SkeletalConnection {
     private final QuackUri uri;
     private final QuackSession session;
     private boolean autoCommit = true;
+    private boolean transactionActive;
     private String catalog;
     private String schema;
     private volatile boolean closed;
@@ -53,7 +54,16 @@ public final class QuackConnection extends SkeletalConnection {
     }
 
     @Override
-    public void setAutoCommit(boolean autoCommit) {
+    public void setAutoCommit(boolean autoCommit) throws SQLException {
+        checkOpen();
+        if (this.autoCommit == autoCommit) {
+            return;
+        }
+        // JDBC spec: changing auto-commit mode mid-transaction commits it.
+        if (transactionActive) {
+            runTransactionCommand("COMMIT");
+            transactionActive = false;
+        }
         this.autoCommit = autoCommit;
     }
 
@@ -65,20 +75,42 @@ public final class QuackConnection extends SkeletalConnection {
     @Override
     public void commit() throws SQLException {
         checkOpen();
-        if (!autoCommit) {
-            try (Statement s = createStatement()) {
-                s.execute("COMMIT");
-            }
+        if (transactionActive) {
+            runTransactionCommand("COMMIT");
+            transactionActive = false;
         }
     }
 
     @Override
     public void rollback() throws SQLException {
         checkOpen();
-        if (!autoCommit) {
-            try (Statement s = createStatement()) {
-                s.execute("ROLLBACK");
-            }
+        if (transactionActive) {
+            runTransactionCommand("ROLLBACK");
+            transactionActive = false;
+        }
+    }
+
+    /**
+     * Lazily open a server-side transaction before the first statement
+     * executed in manual-commit mode. The server stays in auto-commit
+     * until a statement actually runs, so {@code commit()} with nothing
+     * pending is a harmless no-op instead of a server error
+     * ("cannot commit - no transaction is active").
+     */
+    void beginTransactionIfNeeded() throws SQLException {
+        if (autoCommit || transactionActive) {
+            return;
+        }
+        checkOpen();
+        runTransactionCommand("BEGIN TRANSACTION");
+        transactionActive = true;
+    }
+
+    private void runTransactionCommand(String sql) throws SQLException {
+        try {
+            session.cursor(sql).close();
+        } catch (RuntimeException e) {
+            throw new SQLException(e.getMessage(), e);
         }
     }
 
