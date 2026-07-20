@@ -384,7 +384,7 @@ public final class VectorCodec {
                     for (int k = 0; k < e.length; k++) {
                         slice.add(childVector.getObject(e.offset + k));
                     }
-                    values[row] = slice;
+                    values[row] = type.id() == LogicalTypeId.MAP ? toMap(slice) : slice;
                 }
                 yield new DecodedVector.ObjectVec(type, values);
             }
@@ -416,6 +416,16 @@ public final class VectorCodec {
             default -> throw new QuackUnsupportedTypeException(
                     "Variable-width physical type " + physicalType + " is not supported");
         };
+    }
+
+    private static Map<Object, Object> toMap(List<Object> entries) {
+        Map<Object, Object> map = new LinkedHashMap<>();
+        for (Object entry : entries) {
+            if (entry instanceof Map<?, ?> kv) {
+                map.put(kv.get("key"), kv.get("value"));
+            }
+        }
+        return map;
     }
 
     // ---- typed fixed-flat decoding ----
