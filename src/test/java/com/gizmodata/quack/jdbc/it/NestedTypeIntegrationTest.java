@@ -13,6 +13,7 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Struct;
 import java.util.List;
 import java.util.Map;
 
@@ -44,32 +45,30 @@ public class NestedTypeIntegrationTest {
     }
 
     @Test
-    void structColumnDecodesToMap() throws Exception {
+    void structColumnDecodesToStruct() throws Exception {
         try (Connection c = connect();
              Statement s = c.createStatement();
              ResultSet rs = s.executeQuery("SELECT {'x': 1, 'y': 'a'} AS a")) {
             assertTrue(rs.next());
             assertEquals("STRUCT(x INTEGER, y VARCHAR)", rs.getMetaData().getColumnTypeName(1));
-            Object value = rs.getObject("a");
-            Map<?, ?> struct = assertInstanceOf(Map.class, value);
-            assertEquals(1, ((Number) struct.get("x")).intValue());
-            assertEquals("a", struct.get("y"));
+            Struct struct = assertInstanceOf(Struct.class, rs.getObject("a"));
+            Object[] attributes = struct.getAttributes();
+            assertEquals(1, ((Number) attributes[0]).intValue());
+            assertEquals("a", attributes[1]);
         }
     }
 
     @Test
-    void mapColumnDecodesToListOfKeyValueEntries() throws Exception {
+    void mapColumnDecodesToMap() throws Exception {
         try (Connection c = connect();
              Statement s = c.createStatement();
              ResultSet rs = s.executeQuery("SELECT MAP {1: 'a', 2: 'b'} AS a")) {
             assertTrue(rs.next());
             assertEquals("MAP(INTEGER, VARCHAR)", rs.getMetaData().getColumnTypeName(1));
-            Object value = rs.getObject("a");
-            List<?> entries = assertInstanceOf(List.class, value);
-            assertEquals(2, entries.size());
-            Map<?, ?> first = assertInstanceOf(Map.class, entries.get(0));
-            assertEquals(1, ((Number) first.get("key")).intValue());
-            assertEquals("a", first.get("value"));
+            Map<?, ?> map = assertInstanceOf(Map.class, rs.getObject("a"));
+            assertEquals(2, map.size());
+            assertEquals("a", map.get(1));
+            assertEquals("b", map.get(2));
         }
     }
 
@@ -97,10 +96,11 @@ public class NestedTypeIntegrationTest {
             assertTrue(rs.next());
             assertEquals("STRUCT(nums INTEGER[], inner STRUCT(k VARCHAR))",
                     rs.getMetaData().getColumnTypeName(1));
-            Map<?, ?> struct = assertInstanceOf(Map.class, rs.getObject("a"));
-            List<?> nums = assertInstanceOf(List.class, struct.get("nums"));
+            Struct struct = assertInstanceOf(Struct.class, rs.getObject("a"));
+            Object[] attributes = struct.getAttributes();
+            List<?> nums = assertInstanceOf(List.class, attributes[0]);
             assertEquals(3, nums.size());
-            Map<?, ?> inner = assertInstanceOf(Map.class, struct.get("inner"));
+            Map<?, ?> inner = assertInstanceOf(Map.class, attributes[1]);
             assertEquals("v", inner.get("k"));
         }
     }
