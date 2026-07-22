@@ -6,6 +6,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+(nothing yet)
+
+## [0.4.0] — 2026-07-22
+
 ### Fixed
 
 - `Statement.execute(...)` no longer wedges tools that drain results in a
