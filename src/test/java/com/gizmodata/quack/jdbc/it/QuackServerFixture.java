@@ -163,6 +163,12 @@ public final class QuackServerFixture implements AutoCloseable {
     }
 
     private static boolean isOnPath(String binary) {
+        // An absolute path (or any path with a directory component, e.g. ./duckdb)
+        // is checked directly; only a bare command name is resolved against PATH.
+        Path direct = Path.of(binary);
+        if (direct.isAbsolute() || direct.getParent() != null) {
+            return Files.isExecutable(direct);
+        }
         String pathEnv = System.getenv("PATH");
         if (pathEnv == null) return false;
         for (String entry : pathEnv.split(java.io.File.pathSeparator)) {

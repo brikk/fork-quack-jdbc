@@ -25,10 +25,12 @@ jobs:
           cache: 'maven'
 
       - name: Install DuckDB CLI
+        env:
+          DUCKDB_VERSION: 1.5.5
         run: |
           curl -sSL https://install.duckdb.org | sh
-          echo "$HOME/.duckdb/cli/latest" >> "$GITHUB_PATH"
-          "$HOME/.duckdb/cli/latest/duckdb" --version
+          echo "$HOME/.duckdb/cli/${DUCKDB_VERSION}" >> "$GITHUB_PATH"
+          "$HOME/.duckdb/cli/${DUCKDB_VERSION}/duckdb" --version
 
       - name: Build and run all tests
         run: mvn --batch-mode --no-transfer-progress verify

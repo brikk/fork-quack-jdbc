@@ -61,15 +61,17 @@ As of DuckDB v1.5.3 ("Variegata"), `quack` ships as a **core** signed
 extension — the integration fixture runs `INSTALL quack; LOAD quack;`
 against a stock `duckdb` binary (no `-unsigned`, no `core_nightly`).
 For pre-1.5.3 DuckDB builds, use `INSTALL quack FROM core_nightly` with
-`duckdb -unsigned`.
+`duckdb -unsigned`. CI, `mise.toml`, and the `-Poracle` `duckdb_jdbc`
+dependency are pinned to DuckDB 1.5.5.
 
 The wire format was clean-room ported from the TypeScript reference
 (`@quack-protocol/sdk`) at upstream commit
 `daae4826f57986fbb6cc2116316f89c673814b23` (2026-05-10; upstream has
 since squashed its history — the wire-format sources are unchanged as of
-upstream HEAD `12018799`, 2026-05-20). The full driver suite (98 tests)
-currently passes against DuckDB v1.5.3's bundled `quack`. Re-verify when
-DuckDB cuts a new patch release.
+upstream HEAD `12018799`, 2026-05-20). The full driver suite passes
+against DuckDB v1.5.5's bundled `quack` (146 tests on the default
+profile; 149 with `-Poracle` parity against `duckdb_jdbc` 1.5.5.0).
+Re-verify when DuckDB cuts a new patch release.
 
 ## DBeaver metadata reference
 
