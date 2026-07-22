@@ -6,10 +6,10 @@ Lets any JVM tool — DBeaver, IntelliJ DataGrip, dbt, Spark, your own
 service — connect to a DuckDB server over the Quack wire protocol with a
 familiar `jdbc:quack://` URL.
 
-[![Maven Central](https://img.shields.io/maven-central/v/com.gizmodata/quack-jdbc?label=Maven%20Central&logo=apachemaven&color=blue)](https://central.sonatype.com/artifact/com.gizmodata/quack-jdbc)
-[![Latest Release](https://img.shields.io/github/v/release/gizmodata/quack-jdbc?label=Latest%20Release&logo=github&sort=semver)](https://github.com/gizmodata/quack-jdbc/releases/latest)
-[![Download latest jar](https://img.shields.io/badge/download-quack--jdbc.jar-success?logo=java&logoColor=white)](https://github.com/gizmodata/quack-jdbc/releases/latest/download/quack-jdbc.jar)
-[![GitHub Repo](https://img.shields.io/badge/github-gizmodata%2Fquack--jdbc-181717?logo=github)](https://github.com/gizmodata/quack-jdbc)
+[![Maven Central](https://img.shields.io/maven-central/v/dev.brikk.duckdb/quack-jdbc?label=Maven%20Central&logo=apachemaven&color=blue)](https://central.sonatype.com/artifact/dev.brikk.duckdb/quack-jdbc)
+[![Latest Release](https://img.shields.io/github/v/release/brikk/duckdb-quack-jdbc?label=Latest%20Release&logo=github&sort=semver)](https://github.com/brikk/duckdb-quack-jdbc/releases/latest)
+[![Download latest jar](https://img.shields.io/badge/download-quack--jdbc.jar-success?logo=java&logoColor=white)](https://github.com/brikk/duckdb-quack-jdbc/releases/latest/download/quack-jdbc.jar)
+[![GitHub Repo](https://img.shields.io/badge/github-brikk%2Fduckdb--quack--jdbc-181717?logo=github)](https://github.com/brikk/duckdb-quack-jdbc)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 > **Status:** Experimental / alpha. The Quack protocol itself shipped on
@@ -43,26 +43,26 @@ with `duckdb -unsigned`.)
 
 ```xml
 <dependency>
-    <groupId>com.gizmodata</groupId>
+    <groupId>dev.brikk.duckdb</groupId>
     <artifactId>quack-jdbc</artifactId>
-    <version>0.1.0-alpha.1</version>
+    <version>0.3.0</version>
 </dependency>
 ```
 
 **Gradle:**
 
 ```groovy
-implementation "com.gizmodata:quack-jdbc:0.1.0-alpha.1"
+implementation "dev.brikk.duckdb:quack-jdbc:0.3.0"
 ```
 
 **Direct jar download** (for DBeaver, DataGrip, or any tool that takes a `.jar`):
 
 | Asset                                                                                                          | Description                                                    |
 |----------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------|
-| [`quack-jdbc.jar`](https://github.com/gizmodata/quack-jdbc/releases/latest/download/quack-jdbc.jar)            | Latest release — un-versioned filename, always the newest jar  |
-| [`quack-jdbc-sources.jar`](https://github.com/gizmodata/quack-jdbc/releases/latest/download/quack-jdbc-sources.jar) | Latest sources jar                                            |
-| [`quack-jdbc-javadoc.jar`](https://github.com/gizmodata/quack-jdbc/releases/latest/download/quack-jdbc-javadoc.jar) | Latest javadoc jar                                            |
-| [GitHub releases page](https://github.com/gizmodata/quack-jdbc/releases)                                       | All versioned jars + SHA256 checksums for every release        |
+| [`quack-jdbc.jar`](https://github.com/brikk/duckdb-quack-jdbc/releases/latest/download/quack-jdbc.jar)            | Latest release — un-versioned filename, always the newest jar  |
+| [`quack-jdbc-sources.jar`](https://github.com/brikk/duckdb-quack-jdbc/releases/latest/download/quack-jdbc-sources.jar) | Latest sources jar                                            |
+| [`quack-jdbc-javadoc.jar`](https://github.com/brikk/duckdb-quack-jdbc/releases/latest/download/quack-jdbc-javadoc.jar) | Latest javadoc jar                                            |
+| [GitHub releases page](https://github.com/brikk/duckdb-quack-jdbc/releases)                                       | All versioned jars + SHA256 checksums for every release        |
 
 ### 3. Connect and query
 
@@ -299,6 +299,6 @@ GizmoData roadmap.
 
 ## Contributing
 
-Issues and PRs welcome at <https://github.com/gizmodata/quack-jdbc>.
+Issues and PRs welcome at <https://github.com/brikk/duckdb-quack-jdbc>.
 See [CLAUDE.md](CLAUDE.md) for contributor notes (layout, conventions,
 DBeaver-compat expectations).

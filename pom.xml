@@ -12,7 +12,7 @@
 
     <name>quack-jdbc</name>
     <description>JDBC driver for DuckDB's Quack remote protocol.</description>
-    <url>https://github.com/gizmodata/quack-jdbc</url>
+    <url>https://github.com/brikk/duckdb-quack-jdbc</url>
 
     <licenses>
         <license>
@@ -38,9 +38,9 @@
     </developers>
 
     <scm>
-        <url>https://github.com/gizmodata/quack-jdbc</url>
-        <connection>scm:git:https://github.com/gizmodata/quack-jdbc.git</connection>
-        <developerConnection>scm:git:git@github.com:gizmodata/quack-jdbc.git</developerConnection>
+        <url>https://github.com/brikk/duckdb-quack-jdbc</url>
+        <connection>scm:git:https://github.com/brikk/duckdb-quack-jdbc.git</connection>
+        <developerConnection>scm:git:git@github.com:brikk/duckdb-quack-jdbc.git</developerConnection>
     </scm>
 
     <distributionManagement>
