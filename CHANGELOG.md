@@ -6,6 +6,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+(nothing yet)
+
+## [0.5.0] — 2026-07-23
+
 ### Added
 
 - **Extra HTTP headers**: `httpHeader.<Name>` connection properties add
