@@ -24,6 +24,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   v1.5.5 CLI as the integration server; wire protocol unchanged, so
   the supported server floor stays v1.5.3.
 
+### Fixed
+
+- Nested APPEND encoding now rejects a non-null STRUCT row that is not a
+  `java.util.Map` with a `QuackProtocolException` instead of silently
+  encoding every field as NULL — matching how list/map rows are validated.
+
 ## [0.4.0] — 2026-07-22
 
 ### Fixed

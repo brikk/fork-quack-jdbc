@@ -277,6 +277,10 @@ GizmoData roadmap.
   driver. `getColumnTypeName` reports the full element type
   (`INTEGER[]`, `DECIMAL(5,2)[]`, `STRUCT(a INTEGER, b VARCHAR)`,
   `MAP(INTEGER, VARCHAR)`, `ENUM('x', 'y')`, ...).
+  - Only the top-level column is wrapped: nested elements *inside* a
+    LIST/ARRAY/STRUCT/MAP remain plain `java.util.List` / `java.util.Map`
+    values rather than being recursively wrapped as `java.sql.Array` /
+    `java.sql.Struct` the way duckdb-jdbc does.
 - Prepared-statement parameters use client-side literal substitution.
   Native parameter binding will follow once the Quack protocol surfaces
   bind parameters (`PREPARE_REQUEST` currently carries only the SQL text).
